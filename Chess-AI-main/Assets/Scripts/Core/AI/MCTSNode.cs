@@ -3,6 +3,7 @@
     using System;
     using System.Collections.Generic;
     using System.Linq;
+    using Unity.VisualScripting;
     using UnityEngine;
 
 
@@ -21,11 +22,11 @@
 
         public double GetEstimate { get; }
 
-        public IEnumerable<TDerived> ExpandRandomChildren(int maxChildrenCount, System.Random rand);
+        public TDerived SelectDescendant(System.Random rand);
 
-        public GameCompletionState Simulate(System.Random rand);
+        public GameCompletionState DoSimulate(System.Random rand);
 
-        public void DoBackpropagate(GameCompletionState singleSimulationOutcome, float weight = 1.0f);
+        public void DoBackpropagate(GameCompletionState singleSimulationOutcome);
     }
 
     public class ChessMCTSNode : IMCTSNode<ChessMCTSNode>
@@ -36,18 +37,27 @@
         ChessMCTSNode _parent;
         double _estimatesSum = 0f;
         int _estimatesCount = 0;
+        List<ChessMCTSNode> _children;
+        const int MaxChildrenCount = int.MaxValue;
         public ChessMCTSNode ParentNode => _parent;
 
         public GameCompletionState CompletionState { get; }
 
         public double GetEstimate => _estimatesCount <= 0 ? double.NaN : _estimatesSum / _estimatesCount;
 
+        public double ComputeUCS()
+        {
+            const double C = 1//.4142135623730951 //sqrt(2)
+                ;
+            return (_estimatesSum / _estimatesCount) + C*(Math.Log(_parent._estimatesCount)/_estimatesCount);
+        }
+
         public ChessMCTSNode(ChessMCTSNode parent, Board board, MoveGenerator gen)
         {
             (_parent, _currentBoard, _moveGenerator) = (parent, board, gen);
         }
 
-        public void DoBackpropagate(GameCompletionState singleSimulationOutcome, float weight = 1.0f)
+        public void DoBackpropagate(GameCompletionState singleSimulationOutcome)
         {
             _estimatesSum += singleSimulationOutcome switch
             {
@@ -56,23 +66,37 @@
                 GameCompletionState.GameLost => 0f,
                 _ => throw new ArgumentException(),
             };
-            ++_estimatesCount;
-            ParentNode?.DoBackpropagate(singleSimulationOutcome, weight * 0.75f);
+            _estimatesCount += 1;
+            ParentNode?.DoBackpropagate(singleSimulationOutcome);
         }
 
-        public IEnumerable<ChessMCTSNode> ExpandRandomChildren(int maxChildrenCount, System.Random rand)
+        public ChessMCTSNode SelectDescendant(System.Random rand)
         {
-            var moves = _moveGenerator.GenerateMoves(_currentBoard, true);
-            while (moves.Count > maxChildrenCount) moves.RemoveAt(rand.Next(moves.Count));
-            foreach(var move in moves)
+            if(_children == null)
+            { // init the list of children
+                var moves = _moveGenerator.GenerateMoves(_currentBoard, true);
+                while (moves.Count > MaxChildrenCount) moves.RemoveAt(rand.Next(moves.Count));
+                _children = new();
+                foreach (var move in moves)
+                {
+                    var ret = _currentBoard.Clone();
+                    ret.MakeMove(move);
+                    _children.Add(new ChessMCTSNode(this, ret, _moveGenerator));
+                }
+            }
             {
-                var ret = _currentBoard.Clone();
-                ret.MakeMove(move);
-                yield return new ChessMCTSNode(this, ret, _moveGenerator);
+                // recursively expand child nodes with biggest UCS until we get to a node that hadn't yet been simulated
+                ChessMCTSNode ret = this;
+                while(ret._estimatesCount > 0)
+                {
+                    // since this node was already simulated at least once, we expect that the children array must have been initialized
+                    ret = ret._children.Max(ch => ch.ComputeUCS());
+                }
+                return ret;
             }
         }
 
-        public GameCompletionState Simulate(System.Random rand)
+        public GameCompletionState DoSimulate(System.Random rand)
         {
             var b = _currentBoard.Clone();
             while(b.KingSquare.Length >= 2 && b.KingSquare.All(k=>k>0)) // if one of the kings was taken, that means game over
@@ -82,6 +106,25 @@
                 b.MakeMove(randomMove);
             }
             return default; // I have no idea how we are supposed to tell from a `Board` instance which side did win
+        }
+    }
+
+
+    static class Helpers
+    {
+        public static TElem Max<TElem, TComp>(this IEnumerable<TElem> self, Func<TElem, TComp> selector) where TComp: IComparable<TComp>
+        {
+            using var it = self.GetEnumerator();
+            if (!it.MoveNext()) throw new ArgumentOutOfRangeException();
+            TComp maxValue = selector(it.Current);
+            TElem ret = it.Current;
+            while (it.MoveNext())
+            {
+                var value = selector(it.Current);
+                if (value.CompareTo(maxValue) > 0)
+                    (ret, maxValue) = (it.Current, value);
+            }
+            return ret;
         }
     }
 }
