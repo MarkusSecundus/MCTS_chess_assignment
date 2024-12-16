@@ -5,7 +5,7 @@
     using System.Linq;
     using Unity.VisualScripting;
     using UnityEngine;
-
+    using UnityEngine.Assertions;
 
     public enum GameCompletionState
     {
@@ -25,6 +25,7 @@
         public TDerived SelectDescendant(System.Random rand);
 
         public GameCompletionState DoSimulate(System.Random rand);
+        public bool TryExpand(System.Random rand, out TDerived addedNode);
 
         public void DoBackpropagate(GameCompletionState singleSimulationOutcome);
     }
@@ -37,7 +38,9 @@
         ChessMCTSNode _parent;
         double _estimatesSum = 0f;
         int _estimatesCount = 0;
-        List<ChessMCTSNode> _children;
+        List<Move> _unexpandedMoves = null;
+        List<ChessMCTSNode> _children = null;
+
         const int MaxChildrenCount = int.MaxValue;
         public ChessMCTSNode ParentNode => _parent;
 
@@ -45,7 +48,7 @@
 
         public double GetEstimate => _estimatesCount <= 0 ? double.NaN : _estimatesSum / _estimatesCount;
 
-        public double ComputeUCS()
+        public double ComputeUCB()
         {
             const double C = 1//.4142135623730951 //sqrt(2)
                 ;
@@ -70,30 +73,45 @@
             ParentNode?.DoBackpropagate(singleSimulationOutcome);
         }
 
+
+
         public ChessMCTSNode SelectDescendant(System.Random rand)
         {
-            if(_children == null)
-            { // init the list of children
-                var moves = _moveGenerator.GenerateMoves(_currentBoard, true);
-                while (moves.Count > MaxChildrenCount) moves.RemoveAt(rand.Next(moves.Count));
-                _children = new();
-                foreach (var move in moves)
-                {
-                    var ret = _currentBoard.Clone();
-                    ret.MakeMove(move);
-                    _children.Add(new ChessMCTSNode(this, ret, _moveGenerator));
-                }
-            }
+            if (_children == null || _children.Count <= 0)
+                throw new InvalidOperationException($"No descendant to select - consider calling {nameof(TryExpand)} first!");
+
+            // recursively expand child nodes with biggest UCB until we get to a node that hadn't yet been simulated
+            ChessMCTSNode ret = this;
+            while (ret._estimatesCount > 0)
             {
-                // recursively expand child nodes with biggest UCS until we get to a node that hadn't yet been simulated
-                ChessMCTSNode ret = this;
-                while(ret._estimatesCount > 0)
-                {
-                    // since this node was already simulated at least once, we expect that the children array must have been initialized
-                    ret = ret._children.Max(ch => ch.ComputeUCS());
-                }
-                return ret;
+                // since this node was already simulated at least once, we expect that the children array must have been initialized
+                ret = ret._children.Max(ch => ch.ComputeUCB());
             }
+            return ret;
+        }
+        public bool TryExpand(System.Random rand, out ChessMCTSNode addedNode)
+        {
+            _ = rand; // for the generic interface it makes very good sense to have Random generator provided, but here, we use deterministic (last move -> first child) policy
+            addedNode = default;
+
+            if(_unexpandedMoves == null)
+            {
+                _unexpandedMoves = _moveGenerator.GenerateMoves(_currentBoard, true);
+                Assert.IsNull(_children);
+                _children = new();
+            }
+            Assert.IsNotNull(_children);
+            if (_unexpandedMoves.Count <= 0)
+                return false; // there is no move left to expand new child
+
+            var moveToExpand = _unexpandedMoves[^1];
+            _unexpandedMoves.RemoveAt(_unexpandedMoves.Count - 1);
+            
+            var expandedBoard = _currentBoard.Clone();
+            expandedBoard.MakeMove(moveToExpand);
+
+            _children.Add(addedNode = new ChessMCTSNode(this, expandedBoard, _moveGenerator));
+            return true;
         }
 
         public GameCompletionState DoSimulate(System.Random rand)
