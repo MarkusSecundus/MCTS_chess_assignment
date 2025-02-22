@@ -37,9 +37,9 @@
 
         public GameCompletionState CompletionState { get; }
 
-        public double GetEstimate => _estimatesCount <= 0 ? double.NaN : _estimatesSum / _estimatesCount;
+        public double Estimate => _estimatesCount <= 0 ? double.NaN : _estimatesSum / _estimatesCount;
 
-        public ChessMCTSNode GetBestChild() => _children.Max(ch => ch.GetEstimate);
+        public ChessMCTSNode GetBestChild() => _children.Max(ch => ch.Estimate);
 
         public double ComputeUCB()
         {
@@ -76,7 +76,7 @@
 
             // recursively expand child nodes with biggest UCB until we get to a node that hadn't yet been simulated
             ChessMCTSNode ret = this;
-            while (ret._estimatesCount > 0)
+            while (ret._estimatesCount > 0 && ret._children != null && ret._children.Count >0)
             {
                 // since this node was already simulated at least once, we expect that the children array must have been initialized
                 ret = ret._children.Max(ch => ch.ComputeUCB());
@@ -108,12 +108,17 @@
             return true;
         }
 
-        public GameCompletionState DoSimulate(System.Random rand)
+        public GameCompletionState DoSimulate(System.Random rand, int maxMoves = 30)
         {
             var b = _currentBoard.Clone();
             while( ! (b.IsPlayerDefeated(Board.WhiteIndex) || b.IsPlayerDefeated(Board.BlackIndex))) // if one of the kings was taken, that means game over
             {
-                var availableMoves = _moveGenerator.GenerateMoves(_currentBoard, true);
+                if(--maxMoves <= 0)
+                {
+                    return GameCompletionState.Draw;
+                }
+
+                var availableMoves = _moveGenerator.GenerateMoves(b, false, false);
                 if(availableMoves.Count <= 0)
                 {
                     return b.IsPlayerDefeated(_playerIdx) ? GameCompletionState.GameLost : GameCompletionState.GameWon;

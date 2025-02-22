@@ -21,12 +21,12 @@ MonoBehaviour:
   maxBookPly: 10
   promotionsToSearch: 0
   diagnostics:
-    lastCompletedDepth: 3
-    moveVal: Rxh6
-    move: h8-h6
-    eval: -99998
+    lastCompletedDepth: 1
+    moveVal: Rxd8#
+    move: d1-d8
+    eval: 99999
     isBook: 0
-    numPositionsEvaluated: 485
+    numPositionsEvaluated: 0
   depth: 10
   useIterativeDeepening: 1
   useTranspositionTable: 1

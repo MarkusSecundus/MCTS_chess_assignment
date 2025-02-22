@@ -37,6 +37,7 @@
         public void StartSearch()
         {
             InitDebugInfo();
+            Debug.Log("Starting MCTS");
 
             // Initialize search settings
             bestEval = 0;
@@ -70,17 +71,23 @@
 
             DateTime startTime = DateTime.Now;
             DateTime endTime =  startTime + TimeSpan.FromMilliseconds(settings.searchTimeMillis*0.9f);
-            
-            for(; DateTime.Now < endTime; )
+
+
+            int iterationCount = 0;
+            for(; DateTime.Now < endTime && !abortSearch; )
             {
+                //Debug.Log($"Iteration: {iterationCount++}");
+
                 var descendant = root.SelectDescendant(rand);
-                for(int tt = 0; tt < 5; ++tt)
+                for(int tt = 0; tt < 5 && !abortSearch; ++tt)
                 {
-                    root.TryExpand(rand, out var ch);
-                    var outcome = ch.DoSimulate(rand);
-                    ch.DoBackpropagate(outcome);
+                    if(root.TryExpand(rand, out var ch))
+                    {
+                        var outcome = ch.DoSimulate(rand);
+                        ch.DoBackpropagate(outcome);
+                    }
                 }
-                for(int tt = 0; tt < 5; ++tt)
+                for(int tt = 0; tt < 5 && !abortSearch; ++tt)
                 {
                     var ch = root.SelectDescendant(rand);
                     var outcome = ch.DoSimulate(rand);
@@ -92,7 +99,9 @@
             // TODO
             // Don't forget to end the search once the abortSearch parameter gets set to true.
 
-            this.bestMove = root.GetBestChild().Move;
+            ChessMCTSNode bestChild = root.GetBestChild();
+            this.bestMove = bestChild.Move;
+            Debug.Log($"Best move: {bestChild.Move.Name} - confidence: {bestChild.Estimate}");
             //throw new NotImplementedException();
         }
 
