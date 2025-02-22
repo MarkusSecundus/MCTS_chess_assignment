@@ -66,10 +66,34 @@
 
         void SearchMoves()
         {
+            var root = new ChessMCTSNode(null, board, moveGenerator, default);
+
+            DateTime startTime = DateTime.Now;
+            DateTime endTime =  startTime + TimeSpan.FromMilliseconds(settings.searchTimeMillis*0.9f);
+            
+            for(; DateTime.Now < endTime; )
+            {
+                var descendant = root.SelectDescendant(rand);
+                for(int tt = 0; tt < 5; ++tt)
+                {
+                    root.TryExpand(rand, out var ch);
+                    var outcome = ch.DoSimulate(rand);
+                    ch.DoBackpropagate(outcome);
+                }
+                for(int tt = 0; tt < 5; ++tt)
+                {
+                    var ch = root.SelectDescendant(rand);
+                    var outcome = ch.DoSimulate(rand);
+                    ch.DoBackpropagate(outcome);
+                }
+
+            }
+
             // TODO
             // Don't forget to end the search once the abortSearch parameter gets set to true.
 
-            throw new NotImplementedException();
+            this.bestMove = root.GetBestChild().Move;
+            //throw new NotImplementedException();
         }
 
         void LogDebugInfo()

@@ -1,5 +1,6 @@
 ﻿namespace Chess
 {
+    using Chess.Game;
     using System;
     using System.Collections.Generic;
     using System.Linq;
@@ -15,22 +16,8 @@
         GameLost
     }
 
-    public interface IMCTSNode<TDerived> where TDerived : IMCTSNode<TDerived>
-    {
-        public TDerived ParentNode { get; }
-        public GameCompletionState CompletionState { get; } // info about whether the game is over and who won
 
-        public double GetEstimate { get; }
-
-        public TDerived SelectDescendant(System.Random rand);
-
-        public GameCompletionState DoSimulate(System.Random rand);
-        public bool TryExpand(System.Random rand, out TDerived addedNode);
-
-        public void DoBackpropagate(GameCompletionState singleSimulationOutcome);
-    }
-
-    public class ChessMCTSNode : IMCTSNode<ChessMCTSNode>
+    public class ChessMCTSNode
     {
         Board _currentBoard;
         MoveGenerator _moveGenerator;
@@ -41,23 +28,30 @@
         List<Move> _unexpandedMoves = null;
         List<ChessMCTSNode> _children = null;
 
+        public Move Move { get; }
+
         const int MaxChildrenCount = int.MaxValue;
         public ChessMCTSNode ParentNode => _parent;
+
+        readonly int _playerIdx;
 
         public GameCompletionState CompletionState { get; }
 
         public double GetEstimate => _estimatesCount <= 0 ? double.NaN : _estimatesSum / _estimatesCount;
 
+        public ChessMCTSNode GetBestChild() => _children.Max(ch => ch.GetEstimate);
+
         public double ComputeUCB()
         {
-            const double C = 1//.4142135623730951 //sqrt(2)
+            const double C = 1.4142135623730951 //sqrt(2)
                 ;
-            return (_estimatesSum / _estimatesCount) + C*(Math.Log(_parent._estimatesCount)/_estimatesCount);
+            return (_estimatesSum / _estimatesCount) + C*(Math.Log(_parent?._estimatesCount??0)/_estimatesCount);
         }
 
-        public ChessMCTSNode(ChessMCTSNode parent, Board board, MoveGenerator gen)
+        public ChessMCTSNode(ChessMCTSNode parent, Board board, MoveGenerator gen, Move move)
         {
-            (_parent, _currentBoard, _moveGenerator) = (parent, board, gen);
+            (_parent, _currentBoard, _moveGenerator, Move) = (parent, board, gen, move);
+            _playerIdx = board.WhiteToMove ? Board.WhiteIndex : Board.BlackIndex;
         }
 
         public void DoBackpropagate(GameCompletionState singleSimulationOutcome)
@@ -78,7 +72,7 @@
         public ChessMCTSNode SelectDescendant(System.Random rand)
         {
             if (_children == null || _children.Count <= 0)
-                throw new InvalidOperationException($"No descendant to select - consider calling {nameof(TryExpand)} first!");
+                return this;//throw new InvalidOperationException($"No descendant to select - consider calling {nameof(TryExpand)} first!");
 
             // recursively expand child nodes with biggest UCB until we get to a node that hadn't yet been simulated
             ChessMCTSNode ret = this;
@@ -110,26 +104,33 @@
             var expandedBoard = _currentBoard.Clone();
             expandedBoard.MakeMove(moveToExpand);
 
-            _children.Add(addedNode = new ChessMCTSNode(this, expandedBoard, _moveGenerator));
+            _children.Add(addedNode = new ChessMCTSNode(this, expandedBoard, _moveGenerator, moveToExpand));
             return true;
         }
 
         public GameCompletionState DoSimulate(System.Random rand)
         {
             var b = _currentBoard.Clone();
-            while(b.KingSquare.Length >= 2 && b.KingSquare.All(k=>k>0)) // if one of the kings was taken, that means game over
+            while( ! (b.IsPlayerDefeated(Board.WhiteIndex) || b.IsPlayerDefeated(Board.BlackIndex))) // if one of the kings was taken, that means game over
             {
                 var availableMoves = _moveGenerator.GenerateMoves(_currentBoard, true);
+                if(availableMoves.Count <= 0)
+                {
+                    return b.IsPlayerDefeated(_playerIdx) ? GameCompletionState.GameLost : GameCompletionState.GameWon;
+                }
                 var randomMove = availableMoves[rand.Next(availableMoves.Count)];
                 b.MakeMove(randomMove);
             }
-            return default; // I have no idea how we are supposed to tell from a `Board` instance which side did win
+            return b.IsPlayerDefeated(_playerIdx) ? GameCompletionState.GameLost : GameCompletionState.GameWon;
         }
     }
 
 
     static class Helpers
     {
+
+        public static bool IsPlayerDefeated(this Board board, int friendlyColourIndex) => Piece.PieceType(board.Square[board.KingSquare[friendlyColourIndex]]) != Piece.King;
+
         public static TElem Max<TElem, TComp>(this IEnumerable<TElem> self, Func<TElem, TComp> selector) where TComp: IComparable<TComp>
         {
             using var it = self.GetEnumerator();
