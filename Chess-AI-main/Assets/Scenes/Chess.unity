@@ -287,7 +287,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   loadCustomPosition: 0
   customPosition: 7k/R7/p7/6p1/5p1p/5P1K/r6P/8 w - - 0 1
-  whitePlayerType: 0
+  whitePlayerType: 2
   blackPlayerType: 1
   defaultAIType: 1
   alphaBetaSettings: {fileID: 11400000, guid: 326a8f1e9df86ac47a3299a1e12bce9c, type: 2}
@@ -303,7 +303,7 @@ MonoBehaviour:
   aiDiagnosticsUI: {fileID: 755082375}
   resultUI: {fileID: 1140990944}
   zobristDebug: 0
-  stopTestingOnFailure: 0
+  stopTestingOnFailure: 1
 --- !u!4 &439694611
 Transform:
   m_ObjectHideFlags: 0
@@ -691,7 +691,6 @@ GameObject:
   m_Component:
   - component: {fileID: 755082378}
   - component: {fileID: 755082377}
-  - component: {fileID: 755082376}
   - component: {fileID: 755082375}
   m_Layer: 0
   m_Name: Diagnostics
@@ -799,14 +798,6 @@ MonoBehaviour:
   m_hasFontAssetChanged: 0
   m_renderer: {fileID: 755082377}
   m_maskType: 0
---- !u!222 &755082376
-CanvasRenderer:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 755082374}
-  m_CullTransparentMesh: 0
 --- !u!23 &755082377
 MeshRenderer:
   m_ObjectHideFlags: 0

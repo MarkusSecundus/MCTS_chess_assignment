@@ -53,7 +53,7 @@
         public ChessMCTSNode(ChessMCTSNode parent, Board board, MoveGenerator gen, Move move)
         {
             (_parent, _currentBoard, _moveGenerator, Move) = (parent, board, gen, move);
-            _playerIdx = board.WhiteToMove ? Board.WhiteIndex : Board.BlackIndex;
+            _playerIdx = parent?._playerIdx?? (board.WhiteToMove ? Board.WhiteIndex : Board.BlackIndex);
         }
 
         public void DoBackpropagate(GameCompletionState singleSimulationOutcome)
@@ -101,6 +101,7 @@
                     if (ucb > maxUCB)
                         (maxUCB, maxChild) = (ucb, ch);
                 }
+                if (maxChild == null) break;
                 ret = maxChild;
             }
             return ret;

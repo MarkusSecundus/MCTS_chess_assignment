@@ -14,20 +14,20 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   useThreading: 1
   useTimeLimit: 1
-  searchTimeMillis: 5000
+  searchTimeMillis: 1000
   endlessSearchMode: 0
   useBook: 1
   book: {fileID: 4900000, guid: 7473c7aa9594747efb1706cc9c268ef3, type: 3}
   maxBookPly: 10
   promotionsToSearch: 0
   diagnostics:
-    lastCompletedDepth: 0
-    moveVal: 
-    move: 
-    eval: 0
+    lastCompletedDepth: 2
+    moveVal: Qxc4#
+    move: h4-c4
+    eval: 99999
     isBook: 0
-    numPositionsEvaluated: 0
-  depth: 4
+    numPositionsEvaluated: 42
+  depth: 10
   useIterativeDeepening: 1
   useTranspositionTable: 1
   useFixedDepthSearch: 1

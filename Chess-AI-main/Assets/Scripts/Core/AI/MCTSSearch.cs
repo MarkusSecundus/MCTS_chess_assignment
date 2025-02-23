@@ -67,7 +67,7 @@
 
         void SearchMoves()
         {
-            var root = new ChessMCTSNode(null, board, moveGenerator, default);
+            var root = new ChessMCTSNode(null, board.Clone(), moveGenerator, default);
 
             DateTime startTime = DateTime.Now;
             DateTime endTime = startTime + TimeSpan.FromMilliseconds(settings.searchTimeMillis*0.9f);
