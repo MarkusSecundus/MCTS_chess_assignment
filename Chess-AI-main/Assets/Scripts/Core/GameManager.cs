@@ -297,12 +297,15 @@ namespace Chess.Game {
 			StartCoroutine(ExecuteTests());
         }
 
-		IEnumerator ExecuteTests ()
+		static StreamWriter GetLog() => new StreamWriter("./log.txt", true);
+
+
+        IEnumerator ExecuteTests ()
         {
 			int successes = 0;
 			int failures = 0;
 
-			using (StreamWriter sw = new StreamWriter("./log.txt"))
+			
 			{
 				int testIndex = 0;
 				int prevTestMoves = TestSettings.tests[0].numOfMoves;
@@ -374,7 +377,7 @@ namespace Chess.Game {
 					else
 					{
 						testIndex = 1;
-						sw.WriteLine();
+                        using (StreamWriter sw = GetLog()) sw.WriteLine();
 					}
 
 					prevTestMoves = test.numOfMoves;
@@ -384,12 +387,12 @@ namespace Chess.Game {
 					{
 						++successes;
                         Debug.Log(line + "PASSED");
-                        sw.WriteLine(line + "SUCCESS");
+                        using (StreamWriter sw = GetLog()) sw.WriteLine(line + "SUCCESS");
 					}
 					else {
 						++failures;
 						Debug.Log(line + "FAILED");
-						sw.WriteLine(line + "FAILURE");
+                        using (StreamWriter sw = GetLog()) sw.WriteLine(line + "FAILURE");
 
 						if (stopTestingOnFailure)
 						{

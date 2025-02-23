@@ -620,6 +620,8 @@ namespace Chess
             return c;
         }
 
+        public override string ToString() => GetCode();
+
         /// <summary>
         /// Gets the value of the piece based on the type.
         /// </summary>

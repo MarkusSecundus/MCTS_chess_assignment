@@ -80,12 +80,16 @@
                 for (int iterationsCount = 0; !abortSearch && iterationsCount < settings.maxNumOfPlayouts; ++iterationsCount)
                 {
                     Debug.Log("Iteration");
-                    var descendant = root.SelectDescendant(rand);
+                    var descendant = root.SelectDescendant(rand, settings.playoutDepthLimit);
                     Debug.Log($"Selection performed ({descendant})");
+                    if(descendant != root)
+                    {
+                        ;
+                    }
                     if (descendant.TryExpand(rand, out var addedNode))
                     {
                         Debug.Log($"Expansion performed ({addedNode})");
-                        var result = addedNode.DoSimulate(rand, settings.playoutDepthLimit);
+                        var result = addedNode.DoSimulate(rand, 10);
                         Debug.Log($"Simulation performed ({result})");
                         addedNode.DoBackpropagate(result);
                         Debug.Log("Backpropagation performed");
