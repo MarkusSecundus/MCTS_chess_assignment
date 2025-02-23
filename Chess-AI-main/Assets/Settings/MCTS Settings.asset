@@ -12,8 +12,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d10e5046422c87e41b0ef0d19973c561, type: 3}
   m_Name: MCTS Settings
   m_EditorClassIdentifier: 
-  useThreading: 0
-  useTimeLimit: 0
+  useThreading: 1
+  useTimeLimit: 1
   searchTimeMillis: 5000
   endlessSearchMode: 0
   useBook: 1
@@ -28,5 +28,5 @@ MonoBehaviour:
     isBook: 0
     numPositionsEvaluated: 0
   limitNumOfPlayouts: 1
-  maxNumOfPlayouts: 350000
-  playoutDepthLimit: 7
+  maxNumOfPlayouts: 700
+  playoutDepthLimit: 3

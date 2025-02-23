@@ -70,31 +70,34 @@
             var root = new ChessMCTSNode(null, board, moveGenerator, default);
 
             DateTime startTime = DateTime.Now;
-            DateTime endTime =  startTime + TimeSpan.FromMilliseconds(settings.searchTimeMillis*0.9f);
+            DateTime endTime = startTime + TimeSpan.FromMilliseconds(settings.searchTimeMillis*0.9f);
 
 
-            int iterationCount = 0;
-            for(; DateTime.Now < endTime && !abortSearch; )
+            //while(root.TryExpand(rand, out _)) Debug.Log("expanding root");
+
+            if (true)
             {
-                //Debug.Log($"Iteration: {iterationCount++}");
-
-                var descendant = root.SelectDescendant(rand);
-                for(int tt = 0; tt < 5 && !abortSearch; ++tt)
+                for (int iterationsCount = 0; !abortSearch && iterationsCount < settings.maxNumOfPlayouts; ++iterationsCount)
                 {
-                    if(root.TryExpand(rand, out var ch))
+                    Debug.Log("Iteration");
+                    var descendant = root.SelectDescendant(rand);
+                    Debug.Log($"Selection performed ({descendant})");
+                    if (descendant.TryExpand(rand, out var addedNode))
                     {
-                        var outcome = ch.DoSimulate(rand);
-                        ch.DoBackpropagate(outcome);
+                        Debug.Log($"Expansion performed ({addedNode})");
+                        var result = addedNode.DoSimulate(rand, settings.playoutDepthLimit);
+                        Debug.Log($"Simulation performed ({result})");
+                        addedNode.DoBackpropagate(result);
+                        Debug.Log("Backpropagation performed");
+                    }
+                    else
+                    {
+                        Debug.LogError($"Failed to expand node {descendant}");
+                        break;
                     }
                 }
-                for(int tt = 0; tt < 5 && !abortSearch; ++tt)
-                {
-                    var ch = root.SelectDescendant(rand);
-                    var outcome = ch.DoSimulate(rand);
-                    ch.DoBackpropagate(outcome);
-                }
-
             }
+
 
             // TODO
             // Don't forget to end the search once the abortSearch parameter gets set to true.
@@ -102,7 +105,7 @@
             ChessMCTSNode bestChild = root.GetBestChild();
             this.bestMove = bestChild.Move;
             Debug.Log($"Best move: {bestChild.Move.Name} - confidence: {bestChild.Estimate}");
-            //throw new NotImplementedException();
+            
         }
 
         void LogDebugInfo()

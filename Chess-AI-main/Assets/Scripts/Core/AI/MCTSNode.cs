@@ -28,6 +28,8 @@
         List<Move> _unexpandedMoves = null;
         List<ChessMCTSNode> _children = null;
 
+        public int ExpandedChildrenCount => _children?.Count ?? 0;
+
         public Move Move { get; }
 
         const int MaxChildrenCount = int.MaxValue;
@@ -60,6 +62,7 @@
             {
                 GameCompletionState.GameWon => 1f,
                 GameCompletionState.Draw => 0.5f,
+                GameCompletionState.InProgress => 0.5f,
                 GameCompletionState.GameLost => 0f,
                 _ => throw new ArgumentException(),
             };
@@ -71,37 +74,65 @@
 
         public ChessMCTSNode SelectDescendant(System.Random rand)
         {
-            if (_children == null || _children.Count <= 0)
+            _makeSureMovesAreGenerated();
+            if (_unexpandedMoves.Count > 0)
                 return this;//throw new InvalidOperationException($"No descendant to select - consider calling {nameof(TryExpand)} first!");
 
             // recursively expand child nodes with biggest UCB until we get to a node that hadn't yet been simulated
             ChessMCTSNode ret = this;
-            while (ret._estimatesCount > 0 && ret._children != null && ret._children.Count >0)
+            while (ret._estimatesCount > 0 && ret.ExpandedChildrenCount > 0)
             {
                 // since this node was already simulated at least once, we expect that the children array must have been initialized
-                ret = ret._children.Max(ch => ch.ComputeUCB());
+                ChessMCTSNode maxChild = null;
+                double maxUCB = double.NegativeInfinity;
+                foreach(var ch in ret._children)
+                {
+                    ch._makeSureMovesAreGenerated();
+                    if (ch.ExpandedChildrenCount == 0 && ch._unexpandedMoves.Count == 0)
+                    {
+                        continue;
+                    }
+                    if (ch._unexpandedMoves.Count > 0)
+                    {
+                        maxChild = ch;
+                        break;
+                    }
+                    double ucb = ch.ComputeUCB();
+                    if (ucb > maxUCB)
+                        (maxUCB, maxChild) = (ucb, ch);
+                }
+                ret = maxChild;
             }
             return ret;
         }
-        public bool TryExpand(System.Random rand, out ChessMCTSNode addedNode)
-        {
-            _ = rand; // for the generic interface it makes very good sense to have Random generator provided, but here, we use deterministic (last move -> first child) policy
-            addedNode = default;
 
-            if(_unexpandedMoves == null)
+        void _makeSureMovesAreGenerated()
+        {
+            if (_unexpandedMoves == null)
             {
-                _unexpandedMoves = _moveGenerator.GenerateMoves(_currentBoard, true);
                 Assert.IsNull(_children);
+                _unexpandedMoves = _moveGenerator.GenerateMoves(_currentBoard, true, true);
                 _children = new();
             }
             Assert.IsNotNull(_children);
+        }
+
+        public bool TryExpand(System.Random rand, out ChessMCTSNode addedNode)
+        {
+            _ = rand; // for the generic interface it makes very good sense to have Random generator provided, but here, we use deterministic (last move -> first child) policy
+            addedNode = null;
+
+            Debug.Log("Starting expansion");
+            _makeSureMovesAreGenerated();
             if (_unexpandedMoves.Count <= 0)
                 return false; // there is no move left to expand new child
 
+            Debug.Log($"Moves are generated ({_children.Count} expanded | {_unexpandedMoves.Count} unexpanded)");
             var moveToExpand = _unexpandedMoves[^1];
             _unexpandedMoves.RemoveAt(_unexpandedMoves.Count - 1);
-            
-            var expandedBoard = _currentBoard.Clone();
+            Debug.Log($"Getting a move to expand: {moveToExpand.Name}");
+
+            var expandedBoard = _currentBoard.Clone(); 
             expandedBoard.MakeMove(moveToExpand);
 
             _children.Add(addedNode = new ChessMCTSNode(this, expandedBoard, _moveGenerator, moveToExpand));
@@ -128,7 +159,22 @@
             }
             return b.IsPlayerDefeated(_playerIdx) ? GameCompletionState.GameLost : GameCompletionState.GameWon;
         }
+
+
+        public override string ToString()
+        {
+            if (this._parent == null) return "root";
+            return $"{_parent.ToString()} -> {Move.Name}";
+        }
     }
+
+
+
+
+
+
+
+
 
 
     static class Helpers
