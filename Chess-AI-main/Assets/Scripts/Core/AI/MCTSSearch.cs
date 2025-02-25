@@ -36,7 +36,6 @@
         public void StartSearch()
         {
             InitDebugInfo();
-            Debug.Log("Starting MCTS");
 
             // Initialize search settings
             bestMove = Move.InvalidMove;
@@ -65,43 +64,20 @@
 
         void SearchMoves()
         {
+            int maxNumOfPlayouts = settings.limitNumOfPlayouts ? settings.maxNumOfPlayouts : (settings.useThreading && settings.useTimeLimit ? int.MaxValue : 1_000_000); //limit the number of playouts to some big but still somewhat reasonable number when there is no time limit
+
             var root = new ChessMCTSNode(null, board.Clone(), moveGenerator, default);
 
-            DateTime startTime = DateTime.Now;
-            DateTime endTime = startTime + TimeSpan.FromMilliseconds(settings.searchTimeMillis*0.9f);
-
-
-            //while(root.TryExpand(rand, out _)) Debug.Log("expanding root");
-
-            void log(string message) { }// => Debug.Log("message");
-
-            for (int iterationsCount = 0; !abortSearch && iterationsCount < settings.maxNumOfPlayouts; ++iterationsCount)
+            for (int iterationsCount = 1; !abortSearch && iterationsCount <= maxNumOfPlayouts; ++iterationsCount)
             {
-                //log("Iteration");
-                var descendant = root.SelectDescendant(rand, settings.playoutDepthLimit);
-                //log($"Selection performed ({descendant})");
-                if (!descendant.TryExpand(rand, out var addedNode))
-                {
-                    //Debug.LogWarning($"Failed to expand node {descendant}");
+                var descendant = root.SelectDescendant(int.MaxValue);
+                if (!descendant.TryExpand(out var addedNode))
                     addedNode = descendant;
-                }
-                //log($"Expansion performed ({addedNode})");
-                var result = addedNode.DoSimulate(rand, 10);
-                //log($"Simulation performed ({result})");
+                var result = addedNode.DoSimulate(rand, settings.playoutDepthLimit);
                 addedNode.DoBackpropagate(result);
-                //log("Backpropagation performed");
 
                 this.bestMove = root.GetBestChild().Move;
             }
-            
-
-
-            // TODO
-            // Don't forget to end the search once the abortSearch parameter gets set to true.
-
-            ChessMCTSNode bestChild = root.GetBestChild();
-            this.bestMove = bestChild.Move;
-            Debug.Log($"Best move: {bestChild.Move.Name} - confidence: {bestChild.Estimate}");
             
         }
 

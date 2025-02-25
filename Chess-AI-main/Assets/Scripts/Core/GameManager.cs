@@ -329,8 +329,11 @@ namespace Chess.Game {
 				alphaBetaSettings.useFixedDepthSearch = true;
 				alphaBetaSettings.clearTTEachMove = false;
 
-				// Run the tests.
-				foreach (var test in TestSettings.tests)
+
+                using (StreamWriter sw = GetLog()) sw.WriteLine("----------------------------------\n");
+
+                // Run the tests.
+                foreach (var test in TestSettings.tests)
 				{
 					// Set up a new game.
 					boardUI.SetPerspective(true);
