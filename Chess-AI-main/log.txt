@@ -21,3 +21,36 @@
 1 moves test 1: FAILURE
 1 moves test 1: SUCCESS
 1 moves test 2: FAILURE
+1 moves test 1: FAILURE
+1 moves test 1: FAILURE
+1 moves test 1: SUCCESS
+1 moves test 2: FAILURE
+1 moves test 1: SUCCESS
+1 moves test 2: FAILURE
+1 moves test 1: SUCCESS
+1 moves test 2: FAILURE
+1 moves test 3: SUCCESS
+1 moves test 4: SUCCESS
+1 moves test 5: FAILURE
+
+2 moves test 1: SUCCESS
+2 moves test 2: FAILURE
+2 moves test 3: FAILURE
+2 moves test 4: FAILURE
+2 moves test 5: FAILURE
+
+3 moves test 1: FAILURE
+1 moves test 1: SUCCESS
+1 moves test 2: FAILURE
+1 moves test 3: SUCCESS
+1 moves test 4: FAILURE
+1 moves test 5: FAILURE
+
+2 moves test 1: SUCCESS
+2 moves test 2: SUCCESS
+2 moves test 3: FAILURE
+2 moves test 4: SUCCESS
+2 moves test 5: FAILURE
+
+3 moves test 1: FAILURE
+3 moves test 2: FAILURE

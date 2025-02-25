@@ -25,7 +25,7 @@
         ChessMCTSNode _parent;
         public int Depth { get; }
         
-        double _estimatesSum = 0f;
+        float _estimatesSum = 0f;
         int _estimatesCount = 0;
         List<Move> _unexpandedMoves = null;
         List<ChessMCTSNode> _children = null;
@@ -38,58 +38,44 @@
         const int MaxChildrenCount = int.MaxValue;
         public ChessMCTSNode ParentNode => _parent;
 
-        readonly int _playerIdx;
+        readonly int _thisPlayerIdx;
 
-        public GameCompletionState CompletionState { get; }
+        public GameCompletionState CompletionState { get { 
+                if(CheckIsEndState(out int loserColor))
+                {
+                    return (loserColor == _thisPlayerIdx) ? GameCompletionState.GameLost : GameCompletionState.GameWon;
+                }
+                return GameCompletionState.Draw;
+            } }
 
-        public double Estimate { 
+        public float Estimate { 
             get
             {
-                // if we are the root or just below root
-                if (_parent?._parent == null)
-                {
-                    if (_currentBoard.IsPlayerDefeated(_playerIdx))
-                    {
-                        return double.NegativeInfinity;
-                    }
-                    if (_currentBoard.IsPlayerDefeated(1 - _playerIdx))
-                    {
-                        return double.PositiveInfinity;
-                    }
-                }
-
-                return _estimatesCount <= 0 ? double.NaN : _estimatesSum / _estimatesCount;
+                return _estimatesCount <= 0 ? float.NaN : _estimatesSum / _estimatesCount;
             } 
         }
 
-        public bool CheckIsEndState(out int winnerColor)
+        public bool CheckIsEndState(out int loserColor)
         {
-            winnerColor = -1;
+            loserColor = -1;
             if (_parent == null) return false;
-            return _parent._currentBoard.IsMoveThatCapturesAKing(this.Move, out winnerColor);
+            return _parent._currentBoard.IsMoveThatCapturesAKing(this.Move, out loserColor);
         }
 
         public ChessMCTSNode GetBestChild() => _children.Max(ch => ch.Estimate);
 
-        public double ComputeUCB()
+        public float ComputeUCB()
         {
-            // if we are the root or just below root
-            if(_parent?._parent == null)
-            {
-                if (_currentBoard.IsPlayerDefeated(_playerIdx)) return double.NegativeInfinity;
-                if (_currentBoard.IsPlayerDefeated(1-_playerIdx)) return double.PositiveInfinity;
-            }
-
-            const double C = 1.4142135623730951 //sqrt(2)
-                ;
-            return (_estimatesSum / _estimatesCount) + C*(Math.Log(_parent?._estimatesCount??0)/_estimatesCount);
+            const float C = 1f;
+            return (_estimatesSum / _estimatesCount) + C*(Mathf.Log(_parent?._estimatesCount??0)/_estimatesCount);
         }
 
         public ChessMCTSNode(ChessMCTSNode parent, Board board, MoveGenerator gen, Move move)
         {
             (_parent, _currentBoard, _moveGenerator, Move) = (parent, board, gen, move);
             Depth = _parent != null ?_parent.Depth + 1 : 0;
-            _playerIdx = parent?._playerIdx?? (board.WhiteToMove ? Board.WhiteIndex : Board.BlackIndex);
+            _thisPlayerIdx = (parent == null) ? (board.WhiteToMove ? Board.WhiteIndex : Board.BlackIndex) : parent._thisPlayerIdx;
+            this._makeSureMovesAreGenerated();
         }
 
         public void DoBackpropagate(SimulationResult singleSimulationOutcome)
@@ -103,37 +89,60 @@
 
         public ChessMCTSNode SelectDescendant(System.Random rand, int maxDepth)
         {
-            _makeSureMovesAreGenerated();
-            if (_unexpandedMoves.Count > 0)
-                return this;//throw new InvalidOperationException($"No descendant to select - consider calling {nameof(TryExpand)} first!");
+            _ = rand;
 
-            // recursively expand child nodes with biggest UCB until we get to a node that hadn't yet been simulated
-            ChessMCTSNode ret = this;
-            while (ret._estimatesCount > 0 && ret.ExpandedChildrenCount > 0)
+
             {
-                // since this node was already simulated at least once, we expect that the children array must have been initialized
-                ChessMCTSNode maxChild = null;
-                double maxUCB = double.NegativeInfinity;
-                foreach(var ch in ret._children)
+                ChessMCTSNode ret = this;
+                while (true)
                 {
-                    ch._makeSureMovesAreGenerated();
-                    if (ch.ExpandedChildrenCount == 0 && ch._unexpandedMoves.Count == 0)
-                    {
-                        continue;
-                    }
-                    if (ch._unexpandedMoves.Count > 0 && ch.Depth < maxDepth)
-                    {
-                        maxChild = ch;
-                        break;
-                    }
-                    double ucb = ch.ComputeUCB();
-                    if (ucb > maxUCB)
-                        (maxUCB, maxChild) = (ucb, ch);
+                    if (ret._unexpandedMoves.Count > 0)
+                        return ret;
+
+                    if (ret.Depth >= maxDepth)
+                        return ret;
+
+                    var child = ret._children.Where(ch => ch._unexpandedMoves.Count > 0 || ch.ExpandedChildrenCount > 0).Max(ch => ch._unexpandedMoves.Count > 0 ? float.MaxValue : ComputeUCB());
+                    if (child == null) return ret;
+                    ret = child;
                 }
-                if (maxChild == null) break;
-                ret = maxChild;
             }
-            return ret;
+
+
+
+            {
+                _makeSureMovesAreGenerated();
+                if (_unexpandedMoves.Count > 0)
+                    return this;//throw new InvalidOperationException($"No descendant to select - consider calling {nameof(TryExpand)} first!");
+
+                // recursively expand child nodes with biggest UCB until we get to a node that hadn't yet been simulated
+                ChessMCTSNode ret = this;
+                while (ret._estimatesCount > 0 && ret.ExpandedChildrenCount > 0)
+                {
+                    // since this node was already simulated at least once, we expect that the children array must have been initialized
+                    ChessMCTSNode maxChild = null;
+                    float maxUCB = float.NegativeInfinity;
+                    foreach (var ch in ret._children)
+                    {
+                        ch._makeSureMovesAreGenerated();
+                        if (ch.ExpandedChildrenCount == 0 && ch._unexpandedMoves.Count == 0)
+                        {
+                            continue;
+                        }
+                        if (ch._unexpandedMoves.Count > 0 && ch.Depth < maxDepth)
+                        {
+                            maxChild = ch;
+                            break;
+                        }
+                        float ucb = ch.ComputeUCB();
+                        if (ucb > maxUCB)
+                            (maxUCB, maxChild) = (ucb, ch);
+                    }
+                    if (maxChild == null) break;
+                    ret = maxChild;
+                }
+                return ret;
+            }
         }
 
         void _makeSureMovesAreGenerated()
@@ -152,15 +161,15 @@
             _ = rand; // for the generic interface it makes very good sense to have Random generator provided, but here, we use deterministic (last move -> first child) policy
             addedNode = null;
 
-            Debug.Log("Starting expansion");
+            //Debug.Log("Starting expansion");
             _makeSureMovesAreGenerated();
             if (_unexpandedMoves.Count <= 0)
                 return false; // there is no move left to expand new child
 
-            Debug.Log($"Moves are generated ({_children.Count} expanded | {_unexpandedMoves.Count} unexpanded)");
-            var moveToExpand = _unexpandedMoves[^1];
+            //Debug.Log($"Moves are generated ({_children.Count} expanded | {_unexpandedMoves.Count} unexpanded)");
+            var moveToExpand = _unexpandedMoves[_unexpandedMoves.Count - 1];
             _unexpandedMoves.RemoveAt(_unexpandedMoves.Count - 1);
-            Debug.Log($"Getting a move to expand: {moveToExpand.Name}");
+            //Debug.Log($"Getting a move to expand: {moveToExpand.Name}");
 
             var expandedBoard = _currentBoard.Clone(); 
             expandedBoard.MakeMove(moveToExpand);
@@ -172,50 +181,45 @@
 
         public struct SimulationResult
         {
-            public double Value { get; }
-            public SimulationResult(double val) => Value = val;
+            public float Value { get; }
+            public SimulationResult(float val) => Value = val;
 
-            public static SimulationResult Win => new SimulationResult(1);
-            public static SimulationResult Loss => new SimulationResult(0);
+            public static SimulationResult Win => new SimulationResult(1f);
+            public static SimulationResult Loss => new SimulationResult(0f);
+
+            public override string ToString() => Value.ToString();
         }
 
         public SimulationResult DoSimulate(System.Random rand, int maxMoves = 30)
         {
+            if(this.CheckIsEndState(out int loserColor))
+            {
+                return (loserColor == _thisPlayerIdx) ? SimulationResult.Loss : SimulationResult.Win;
+            }
+
             var leightweightBoard = _currentBoard.GetLightweightClone();
             var evaluation = new Evaluation();
-            bool currentTeam() => _playerIdx == Board.WhiteIndex;
-            SimulationResult heuristicEval()=> new SimulationResult(evaluation.EvaluateSimBoard(leightweightBoard, _playerIdx == Board.WhiteIndex));
+            bool thisPlayer() => _thisPlayerIdx == Board.WhiteIndex;
+            SimulationResult heuristicEval()=> new SimulationResult(evaluation.EvaluateSimBoard(leightweightBoard, thisPlayer()));
 
-            while (true)
+            for (bool currentPlayer = _currentBoard.WhiteToMove; ;)
             {
                 if(--maxMoves <= 0)
                 {
                     return heuristicEval();
                 }
-                var availableMoves = _moveGenerator.GetSimMoves(leightweightBoard, currentTeam());
+                var availableMoves = _moveGenerator.GetSimMoves(leightweightBoard, currentPlayer);
                 if(availableMoves.Count <= 0)
                 {
                     return heuristicEval();
                 }
-                for(int t = 0; t < availableMoves.Count; ++t)
-                {
-                    var move = availableMoves[t];
-                    if(leightweightBoard.IsMoveThatCapturesAKing(move, out bool kingTeam))
-                    {
-                        if (kingTeam != currentTeam())
-                            return SimulationResult.Win;
-                        else
-                        {
-                            availableMoves.RemoveAt(t);
-                            --t;
-                        }
-                    }
-                }
-                if (availableMoves.Count <= 0)
-                    return SimulationResult.Loss; // We threw away all moves that would mean our loss and now nothing is left
-
+                                
                 var randomMove = availableMoves[rand.Next(availableMoves.Count)];
+                if (leightweightBoard.IsMoveThatCapturesAKing(randomMove, out bool kingTeam))
+                    return (kingTeam != thisPlayer()) ? SimulationResult.Win : SimulationResult.Loss;
+
                 leightweightBoard.MakeSimMove(randomMove);
+                currentPlayer = !currentPlayer;
             }
         }
 
@@ -270,8 +274,8 @@
 
         public static void MakeSimMove(this SimPiece[,] b, SimMove m)
         {
-            b[m.endCoord1, m.endCoord2] = b[m.startCoord2, m.startCoord2];
-            b[m.startCoord2, m.startCoord2] = default;
+            b[m.endCoord1, m.endCoord2] = b[m.startCoord1, m.startCoord2];
+            b[m.startCoord1, m.startCoord2] = default;
         }
 
         public static GameCompletionState getBoardState(this Board b, int playerIdx)
@@ -292,7 +296,7 @@
         public static TElem Max<TElem, TComp>(this IEnumerable<TElem> self, Func<TElem, TComp> selector) where TComp: IComparable<TComp>
         {
             using var it = self.GetEnumerator();
-            if (!it.MoveNext()) throw new ArgumentOutOfRangeException();
+            if (!it.MoveNext()) return default;
             TComp maxValue = selector(it.Current);
             TElem ret = it.Current;
             while (it.MoveNext())

@@ -303,7 +303,7 @@ MonoBehaviour:
   aiDiagnosticsUI: {fileID: 755082375}
   resultUI: {fileID: 1140990944}
   zobristDebug: 0
-  stopTestingOnFailure: 1
+  stopTestingOnFailure: 0
 --- !u!4 &439694611
 Transform:
   m_ObjectHideFlags: 0

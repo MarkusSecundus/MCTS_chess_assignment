@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: MCTS Settings
   m_EditorClassIdentifier: 
   useThreading: 1
-  useTimeLimit: 0
+  useTimeLimit: 1
   searchTimeMillis: 1000
   endlessSearchMode: 0
   useBook: 1
@@ -28,5 +28,5 @@ MonoBehaviour:
     isBook: 0
     numPositionsEvaluated: 0
   limitNumOfPlayouts: 1
-  maxNumOfPlayouts: 300
-  playoutDepthLimit: 3
+  maxNumOfPlayouts: 20000
+  playoutDepthLimit: 7

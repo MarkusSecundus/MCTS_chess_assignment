@@ -12,7 +12,6 @@
         MoveGenerator moveGenerator;
 
         Move bestMove;
-        int bestEval;
         bool abortSearch;
 
         MCTSSettings settings;
@@ -40,7 +39,6 @@
             Debug.Log("Starting MCTS");
 
             // Initialize search settings
-            bestEval = 0;
             bestMove = Move.InvalidMove;
 
             moveGenerator.promotionsToGenerate = settings.promotionsToSearch;
@@ -75,32 +73,27 @@
 
             //while(root.TryExpand(rand, out _)) Debug.Log("expanding root");
 
-            if (true)
+            void log(string message) { }// => Debug.Log("message");
+
+            for (int iterationsCount = 0; !abortSearch && iterationsCount < settings.maxNumOfPlayouts; ++iterationsCount)
             {
-                for (int iterationsCount = 0; !abortSearch && iterationsCount < settings.maxNumOfPlayouts; ++iterationsCount)
+                //log("Iteration");
+                var descendant = root.SelectDescendant(rand, settings.playoutDepthLimit);
+                //log($"Selection performed ({descendant})");
+                if (!descendant.TryExpand(rand, out var addedNode))
                 {
-                    Debug.Log("Iteration");
-                    var descendant = root.SelectDescendant(rand, settings.playoutDepthLimit);
-                    Debug.Log($"Selection performed ({descendant})");
-                    if(descendant != root)
-                    {
-                        ;
-                    }
-                    if (descendant.TryExpand(rand, out var addedNode))
-                    {
-                        Debug.Log($"Expansion performed ({addedNode})");
-                        var result = addedNode.DoSimulate(rand, 10);
-                        Debug.Log($"Simulation performed ({result})");
-                        addedNode.DoBackpropagate(result);
-                        Debug.Log("Backpropagation performed");
-                    }
-                    else
-                    {
-                        Debug.LogError($"Failed to expand node {descendant}");
-                        break;
-                    }
+                    //Debug.LogWarning($"Failed to expand node {descendant}");
+                    addedNode = descendant;
                 }
+                //log($"Expansion performed ({addedNode})");
+                var result = addedNode.DoSimulate(rand, 10);
+                //log($"Simulation performed ({result})");
+                addedNode.DoBackpropagate(result);
+                //log("Backpropagation performed");
+
+                this.bestMove = root.GetBestChild().Move;
             }
+            
 
 
             // TODO
