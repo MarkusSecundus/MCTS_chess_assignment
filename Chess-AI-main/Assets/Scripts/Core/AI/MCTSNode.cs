@@ -9,6 +9,11 @@
     using UnityEngine.Assertions;
 
 
+    public enum GameProgress
+    {
+        InProgress, Lost, Won
+    }
+
     public class ChessMCTSNode
     {
         Board _thisBoard;
@@ -17,9 +22,11 @@
         public ChessMCTSNode Parent { get; }
         public bool IsRoot => Parent == null;
         public int Depth { get; }
-        
+
+
         public float EstimatesSum { get; private set; } = 0f;
         public float EstimatesCount { get; private set; } = 0;
+        public float Estimate => EstimatesCount <= 0 ? 0f : EstimatesSum / EstimatesCount;
 
         readonly List<Move> _unexpandedMoves;
         readonly List<ChessMCTSNode> _children = new();
@@ -29,29 +36,38 @@
         public Move Move { get; }
 
         readonly int _thisPlayerIdx;
-
-        public float Estimate => EstimatesCount <= 0 ? 0f : EstimatesSum / EstimatesCount;
+        int _playerOnMoveIdx => (_thisBoard.WhiteToMove ? Board.WhiteIndex : Board.BlackIndex);
 
         public bool CheckIsEndState(out int loserColor)
         {
             loserColor = -1;
             if (Parent == null) return false;
-            return Parent._thisBoard.IsMoveThatCapturesAKing(this.Move, out loserColor);
+            if (Parent._thisBoard.IsMoveThatCapturesAKing(this.Move, out loserColor)) return true;
+            //if (_children?.Count == 1 && TotalChildrenCount == 1 && _children[0].CheckIsEndState(out loserColor)) return true;
+            return false;
         }
+        public GameProgress GameState => CheckIsEndState(out var loserColor) ? (loserColor == _thisPlayerIdx ? GameProgress.Lost : GameProgress.Won) : GameProgress.InProgress;
 
-        public ChessMCTSNode GetBestChild() => _children.MaxOrDefault(ch => ch.Estimate);
+        public ChessMCTSNode BestChild => _children.MaxOrDefault(ch => ch.Estimate);
 
-        public float ComputeUCB()
+        public float UCB
         {
-            const float C = 1f;
-            return (EstimatesSum / EstimatesCount) + C*(Mathf.Log(Parent?.EstimatesCount??0)/EstimatesCount);
+            get
+            {
+                const float C = 1.415f;
+                float exploitationPart = EstimatesSum / EstimatesCount;
+                //If the current player is on move right now, that means the move that got us into this state was the opponent's
+                // the oponent tries to minimize our utility, thus we need to invert the exploitative part if we want to compute his (and not ours) UCB
+                if (_thisPlayerIdx == _playerOnMoveIdx) exploitationPart = 1f - exploitationPart;
+                return exploitationPart + C * (Mathf.Log(Parent?.EstimatesCount ?? 0) / EstimatesCount);
+            }
         }
 
         public ChessMCTSNode(ChessMCTSNode parent, Board board, MoveGenerator gen, Move move)
         {
             (Parent, _thisBoard, _moveGenerator, Move) = (parent, board, gen, move);
             Depth = (Parent == null) ? 0: (Parent.Depth + 1);
-            _thisPlayerIdx = (parent == null) ? (board.WhiteToMove ? Board.WhiteIndex : Board.BlackIndex) : parent._thisPlayerIdx;
+            _thisPlayerIdx = (parent == null) ? this._playerOnMoveIdx : parent._thisPlayerIdx;
 
             _unexpandedMoves = _moveGenerator.GenerateMoves(_thisBoard, this.IsRoot);
         }
@@ -61,8 +77,8 @@
             float weight = 1.0f;
             for(ChessMCTSNode node = this; node != null; node = node.Parent)
             {
-                node.EstimatesSum += singleSimulationOutcome.Value * weight;
-                node.EstimatesCount += weight;
+                node.EstimatesSum += singleSimulationOutcome.Value ;
+                node.EstimatesCount += 1f; 
                 weight *= decayRate;
             }
         }
@@ -80,7 +96,7 @@
                 if (ret.Depth >= maxDepth)
                     return ret;
 
-                var child = ret._children.MaxOrDefault(ch => ch.ComputeUCB());
+                var child = ret._children.MaxOrDefault(ch => ch.UCB);
                 if (child == null) return ret;
                 ret = child;
             }
@@ -142,7 +158,10 @@
                                 
                 var randomMove = availableMoves[rand.Next(availableMoves.Count)];
                 if (board.IsMoveThatCapturesAKing(randomMove, out bool kingTeam))
+                {
+                    if (kingTeam == playerOnTurn) Debug.LogError("Simulation - chose a move that captures own king lol");
                     return (kingTeam != thisPlayer()) ? SimulationResult.Win : SimulationResult.Loss;
+                }
 
                 board.MakeSimMove(randomMove);
                 playerOnTurn = !playerOnTurn;
@@ -158,7 +177,7 @@
         }
         public override string ToString()
         {
-            return $"({EstimatesSum:.0}/{EstimatesCount:.}) {_getNamePath()}";
+            return $"({EstimatesSum:.0}/{EstimatesCount:.})[{GameState}] {_getNamePath()}";
         }
     }
 

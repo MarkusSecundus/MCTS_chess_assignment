@@ -289,7 +289,7 @@ MonoBehaviour:
   customPosition: 7k/R7/p7/6p1/5p1p/5P1K/r6P/8 w - - 0 1
   whitePlayerType: 2
   blackPlayerType: 1
-  defaultAIType: 1
+  defaultAIType: 2
   alphaBetaSettings: {fileID: 11400000, guid: 326a8f1e9df86ac47a3299a1e12bce9c, type: 2}
   mctsSettings: {fileID: 11400000, guid: 22f9701191ff97d48a0dc05eeb4e1b67, type: 2}
   colors:

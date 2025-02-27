@@ -68,17 +68,19 @@
 
             var root = new ChessMCTSNode(null, board.Clone(), moveGenerator, default);
 
+            ChessMCTSNode bestChild = null;
             for (int iterationsCount = 1; !abortSearch && iterationsCount <= maxNumOfPlayouts; ++iterationsCount)
             {
                 var descendant = root.SelectDescendant(int.MaxValue);
                 if (!descendant.TryExpand(out var addedNode))
                     addedNode = descendant;
                 var result = addedNode.DoSimulate(rand, settings.playoutDepthLimit);
-                addedNode.DoBackpropagate(result);
+                addedNode.DoBackpropagate(result, 1f);
 
-                this.bestMove = root.GetBestChild().Move;
+                this.bestMove = (bestChild = root.BestChild).Move;
             }
-            
+            this.bestMove = (bestChild = root.BestChild).Move;
+
         }
 
         void LogDebugInfo()

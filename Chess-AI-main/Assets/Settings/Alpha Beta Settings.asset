@@ -22,7 +22,7 @@ MonoBehaviour:
   promotionsToSearch: 0
   diagnostics:
     lastCompletedDepth: 0
-    moveVal: d5
+    moveVal: e4
     move: 
     eval: 0
     isBook: 1
